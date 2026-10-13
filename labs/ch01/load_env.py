@@ -21,6 +21,7 @@ def load_settings(path: str) -> dict[str, str]:
     env_path = Path(path)
     # Donen degerler str veya None olabilir. None olanlari almuyoruz.
     raw = dotenv_values(env_path)
+    # Bos degerler None gelebilir. Onlari sozluge koymayiz.
     settings: dict[str, str] = {}
     for key, value in raw.items():
         if value is None:
@@ -32,6 +33,7 @@ def load_settings(path: str) -> dict[str, str]:
 def main(env_path: str = ".env.example") -> dict[str, str]:
     """Ornek dosyayi okuyup MODEL anahtarini gosterir."""
 
+    # .env.example gercek anahtar tasimaz. Sadece isimleri gosterir.
     settings = load_settings(env_path)
     # MODEL, ChatOllama'ya verilecek yerel model adidir.
     print(f"MODEL={settings.get('MODEL', '')}")

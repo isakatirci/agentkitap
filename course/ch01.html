@@ -56,6 +56,7 @@ def load_settings(path: str) -&gt; dict[str, str]:
     env_path = Path(path)
     # Donen degerler str veya None olabilir. None olanlari almuyoruz.
     raw = dotenv_values(env_path)
+    # Bos degerler None gelebilir. Onlari sozluge koymayiz.
     settings: dict[str, str] = {}
     for key, value in raw.items():
         if value is None:
@@ -67,6 +68,7 @@ def load_settings(path: str) -&gt; dict[str, str]:
 def main(env_path: str = &quot;.env.example&quot;) -&gt; dict[str, str]:
     &quot;&quot;&quot;Ornek dosyayi okuyup MODEL anahtarini gosterir.&quot;&quot;&quot;
 
+    # .env.example gercek anahtar tasimaz. Sadece isimleri gosterir.
     settings = load_settings(env_path)
     # MODEL, ChatOllama&#x27;ya verilecek yerel model adidir.
     print(f&quot;MODEL={settings.get(&#x27;MODEL&#x27;, &#x27;&#x27;)}&quot;)
@@ -134,7 +136,9 @@ def summarize(text: str, model) -&gt; str:
     alan content&#x27;tir; nesnenin kendisi duz yazi degildir.
     &quot;&quot;&quot;
 
+    # Chain&#x27;i her cagri kurmak, prompt ile modeli yan yana tutar.
     chain = build_summarize_chain(model)
+    # Sozluk anahtari, template icindeki {text} adiyla ayni olmalidir.
     message = chain.invoke({&quot;text&quot;: text})
     # Bazi chain&#x27;ler duz str dondurebilir. Bu kurs chat model kullandigi
     # icin beklenti AIMessage&#x27;tir. Yine de str gelirse onu oldugu gibi alin.
@@ -192,6 +196,9 @@ def describe_response(message: AIMessage) -&gt; dict:
     tool_calls: model bir tool istiyorsa burasi dolu olur. Chapter 2&#x27;de kullanilir.
     &quot;&quot;&quot;
 
+    # type, mesajin roludur. Model cevabinda bu deger &quot;ai&quot; olur.
+    # content, kullaniciya basacagin metindir. print(message) bu metin degildir.
+    # tool_calls bos ise model bu turda bir tool istememistir.
     return {
         &quot;type&quot;: message.type,
         &quot;content&quot;: message.content,
@@ -205,7 +212,9 @@ def main() -&gt; dict:
     Bu dosya modele gitmez. Amac, response nesnesinin şeklini gormektir.
     &quot;&quot;&quot;
 
+    # Canli modele gitmeden response seklinin ornegi.
     sample = AIMessage(content=&quot;Python is beginner friendly.&quot;, tool_calls=[])
+    # Sozluk, uc alani yan yana gosterir.
     info = describe_response(sample)
     print(info)
     return info
@@ -245,11 +254,14 @@ def summarize_with(model, text: str) -&gt; str:
     Prompt ayni kalir. Degisen sadece invoke edilen chat modeldir.
     &quot;&quot;&quot;
 
+    # Kalip ayni kalir. Degisen sey yalnizca asagidaki modeldir.
     prompt = ChatPromptTemplate.from_template(
         &quot;Summarize the text in one sentence.\n\nText:\n{text}&quot;
     )
+    # | once prompt&#x27;u doldurur, sonra modeli cagirir.
     chain = prompt | model
     message = chain.invoke({&quot;text&quot;: text})
+    # content, AIMessage icindeki gosterilecek metindir.
     return str(message.content)
 
 
@@ -257,9 +269,11 @@ def main(model=None) -&gt; str:
     &quot;&quot;&quot;model None ise Ollama Gemma, degilse verilen model kullanilir.&quot;&quot;&quot;
 
     source = &quot;Local open-weight models can run on your own machine.&quot;
+    # Test FakeChatModel verir. Bos birakilirsa yerel Gemma acilir.
     chosen = model or make_chat_model()
     summary = summarize_with(chosen, source)
     print(summary)
+    # Test bu stringi scriptli modelin content&#x27;i ile kilitler.
     return summary
 
 
@@ -297,9 +311,11 @@ def traced_summarize(text: str, model, tracer: LocalTracer) -&gt; str:
     &#x27;modele ne sorduk&#x27; gorulsun. response, modelin content degeridir.
     &quot;&quot;&quot;
 
+    # Ozet chain&#x27;i Chapter 1 ile aynidir. Eklenen sey tracer kaydidir.
     prompt = ChatPromptTemplate.from_template(
         &quot;Summarize the text in one sentence.\n\nText:\n{text}&quot;
     )
+    # Pipe, promptu modele baglar. Ara degisken tutulmaz.
     message = (prompt | model).invoke({&quot;text&quot;: text})
     answer = str(message.content)
     # Trace, chain bittikten sonra da okunabilsin diye ayri nesnededir.
@@ -310,10 +326,12 @@ def traced_summarize(text: str, model, tracer: LocalTracer) -&gt; str:
 def main(model=None) -&gt; str:
     &quot;&quot;&quot;Bir ozeti calistirir ve trace satirini yazdirir.&quot;&quot;&quot;
 
+    # Yeni bir gunluk. Onceki labin olaylari buraya karismaz.
     tracer = LocalTracer()
     chosen = model or make_chat_model()
     answer = traced_summarize(&quot;Tracing shows each model call.&quot;, chosen, tracer)
     print(answer)
+    # Tek olay beklenir: kind degeri llm.
     print(tracer.events)
     return answer
 
@@ -386,18 +404,23 @@ def summarize_as_bullets(text: str, model) -&gt; str:
     Sema Chapter 2 structured output konusudur.
     &quot;&quot;&quot;
 
+    # &quot;three bullet&quot; talimati modele giden metnin parcasi olur.
     prompt = ChatPromptTemplate.from_template(
         &quot;Summarize the text as three bullet points.\n\nText:\n{text}&quot;
     )
+    # Chain yine prompt, sonra modeldir. Tek cumlelik labdan farki bu satirdir.
     message = (prompt | model).invoke({&quot;text&quot;: text})
+    # Donen sey hala serbest metindir, Pydantic nesnesi degildir.
     return str(message.content)
 
 
 def main(model=None) -&gt; str:
     source = &quot;Python, tests, and agents help a junior ship small programs.&quot;
+    # model verilmezse Gemma kullanilir. Test scriptli model gecirir.
     chosen = model or make_chat_model()
     answer = summarize_as_bullets(source, chosen)
     print(answer)
+    # Madde isaretleri modelden gelir. Kod onlarin yerini zorlamaz.
     return answer
 
 

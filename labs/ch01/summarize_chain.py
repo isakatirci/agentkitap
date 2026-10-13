@@ -34,7 +34,9 @@ def summarize(text: str, model) -> str:
     alan content'tir; nesnenin kendisi duz yazi degildir.
     """
 
+    # Chain'i her cagri kurmak, prompt ile modeli yan yana tutar.
     chain = build_summarize_chain(model)
+    # Sozluk anahtari, template icindeki {text} adiyla ayni olmalidir.
     message = chain.invoke({"text": text})
     # Bazi chain'ler duz str dondurebilir. Bu kurs chat model kullandigi
     # icin beklenti AIMessage'tir. Yine de str gelirse onu oldugu gibi alin.

@@ -29,6 +29,7 @@ CORPUS: list[dict[str, str]] = [
 def search_corpus(query: str, corpus: list[dict[str, str]] | None = None) -> str:
     """Sorgudaki kelimelerden biri belge metninde geciyorsa belgeyi dondurur."""
 
+    # Testler corpus parametresini verir. main() yerel CORPUS listesini kullanir.
     documents = CORPUS if corpus is None else corpus
     words = [word.lower() for word in query.split() if word.strip()]
     hits: list[str] = []
@@ -36,6 +37,7 @@ def search_corpus(query: str, corpus: list[dict[str, str]] | None = None) -> str
         haystack = f"{document['title']} {document['body']}".lower()
         if any(word in haystack for word in words):
             hits.append(f"{document['title']}: {document['body']}")
+    # Bos string agent'i sessiz arac sanmasin diye acik cumle doner.
     if not hits:
         return "No documents."
     return "\n".join(hits)

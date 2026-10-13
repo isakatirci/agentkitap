@@ -15,6 +15,7 @@ def few_shot_prompt(question: str) -> str:
     Ornek 'Company: Acme' bicimini gosterir. Model ayni kalibi surdurur.
     """
 
+    # Ilk soru cozulmus ornektir. Ikincisi modelin surdurecegi gercek sorudur.
     return (
         "Answer with one line in the shape Company: name.\n\n"
         "Question: Who hires SQL analysts in the course list?\n"
@@ -25,14 +26,18 @@ def few_shot_prompt(question: str) -> str:
 
 
 def run_few_shot(question: str, model) -> str:
+    # Model ornegin "Company: ad" satirini gorur ve ayni kaliba yaklasir.
     message = model.invoke([HumanMessage(content=few_shot_prompt(question))])
     return str(message.content)
 
 
 def main(model=None) -> str:
+    # Few-shot da Gemma ile calisir. Tool semasi gonderilmez.
     chosen = model or make_chat_model()
+    # Ornek Northwind icindir. Bu soru Python ilanini sorar.
     answer = run_few_shot("Who hires junior Python developers?", chosen)
     print(answer)
+    # Kalip "Company:" ile baslamaya egilimlidir. Garanti degildir.
     return answer
 
 

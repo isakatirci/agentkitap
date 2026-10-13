@@ -35,10 +35,12 @@ def recommend_with_tool_strategy(question: str, model) -> JobMatch:
             '{"title":"Data Analyst","company":"Northwind","reason":"sql tag"}. '
             "For a Python question, choose Acme or Bright instead of the example."
         ),
+        # ToolStrategy, JobMatch'i bir tool gibi cagirtir. Cevap semaya uymak zorundadir.
         response_format=ToolStrategy(JobMatch),
     )
     result = agent.invoke(
         {"messages": [HumanMessage(content=question)]},
+        # Limit, model ornek JSON'u tekrar tekrar denerse donguyu keser.
         config={"recursion_limit": 12},
     )
     # structured_response, dogrulanmis Pydantic nesnesidir. Ham JSON degil.
@@ -56,6 +58,7 @@ def recommend_with_provider_strategy(question: str, model) -> JobMatch:
             "Choose from Acme Junior Python Developer, "
             "Bright Junior Python Intern, or Northwind Data Analyst."
         ),
+        # ProviderStrategy, ayni semayi modelin kendi structured output yoluna verir.
         response_format=ProviderStrategy(JobMatch),
     )
     result = agent.invoke(

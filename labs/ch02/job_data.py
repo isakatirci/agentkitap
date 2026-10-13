@@ -1,5 +1,6 @@
 """Yerel is ilanlari. Dis bir is API'si yoktur."""
 
+# Dis bir is sitesi yok. Agent bu uc kaydi tool ile okur.
 JOBS: list[dict[str, str]] = [
     {
         "title": "Junior Python Developer",
@@ -7,6 +8,7 @@ JOBS: list[dict[str, str]] = [
         "city": "Ankara",
         "tags": "python",
     },
+    # SQL ilani, "python" sorgusunda eslesmemelidir.
     {
         "title": "Data Analyst",
         "company": "Northwind",
@@ -29,6 +31,7 @@ def format_jobs(keyword: str) -> str:
     Bos string dondurmek agent'i 'arac sessiz kaldi' sanmasina yol acar.
     """
 
+    # Kucuk harf, "Python" ile "python" tag'ini ayni sayar.
     needle = keyword.lower()
     # Model bazen "junior python" gonderir. Tag "python" oldugu icin
     # tam ifade kacarsa kelimelerden biri tag icinde mi diye bakilir.

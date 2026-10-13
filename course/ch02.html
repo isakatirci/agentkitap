@@ -35,6 +35,7 @@
   <p>Bu kurstaki liste uc ilandir. Acme ve Bright Python arar, Northwind SQL arar. Dis bir is sitesi yoktur. Ogrenilecek sey ag degil, sozlesmedir.</p>
   <pre><code data-lab="labs/ch02/job_data.py">&quot;&quot;&quot;Yerel is ilanlari. Dis bir is API&#x27;si yoktur.&quot;&quot;&quot;
 
+# Dis bir is sitesi yok. Agent bu uc kaydi tool ile okur.
 JOBS: list[dict[str, str]] = [
     {
         &quot;title&quot;: &quot;Junior Python Developer&quot;,
@@ -42,6 +43,7 @@ JOBS: list[dict[str, str]] = [
         &quot;city&quot;: &quot;Ankara&quot;,
         &quot;tags&quot;: &quot;python&quot;,
     },
+    # SQL ilani, &quot;python&quot; sorgusunda eslesmemelidir.
     {
         &quot;title&quot;: &quot;Data Analyst&quot;,
         &quot;company&quot;: &quot;Northwind&quot;,
@@ -64,6 +66,7 @@ def format_jobs(keyword: str) -&gt; str:
     Bos string dondurmek agent&#x27;i &#x27;arac sessiz kaldi&#x27; sanmasina yol acar.
     &quot;&quot;&quot;
 
+    # Kucuk harf, &quot;Python&quot; ile &quot;python&quot; tag&#x27;ini ayni sayar.
     needle = keyword.lower()
     # Model bazen &quot;junior python&quot; gonderir. Tag &quot;python&quot; oldugu icin
     # tam ifade kacarsa kelimelerden biri tag icinde mi diye bakilir.
@@ -132,6 +135,7 @@ def trace_messages(messages: list, tracer: LocalTracer) -&gt; None:
 def run_job_agent(question: str, model, tracer: LocalTracer | None = None) -&gt; str:
     &quot;&quot;&quot;Soru sorar, search_jobs aracini kullanir, son metni dondurur.&quot;&quot;&quot;
 
+    # create_agent, model + tool + system prompt ile donguyu kurar.
     agent = create_agent(
         model=model,
         tools=[search_jobs],
@@ -145,6 +149,7 @@ def run_job_agent(question: str, model, tracer: LocalTracer | None = None) -&gt;
         # recursion_limit, model tool&#x27;u birakmazsa donguyu keser.
         config={&quot;recursion_limit&quot;: 10},
     )
+    # Tracer verilmezse dongu yine calisir. Iz yalnizca istenince yazilir.
     if tracer is not None:
         trace_messages(result[&quot;messages&quot;], tracer)
     last = result[&quot;messages&quot;][-1]
@@ -152,6 +157,7 @@ def run_job_agent(question: str, model, tracer: LocalTracer | None = None) -&gt;
 
 
 def main(model=None) -&gt; str:
+    # Tool calling icin Qwen. Gemma bu Ollama surumunde tool semasini reddeder.
     chosen = model or make_tool_model()
     answer = run_job_agent(&quot;Find python jobs&quot;, chosen, LocalTracer())
     print(answer)
@@ -200,6 +206,7 @@ CORPUS: list[dict[str, str]] = [
 def search_corpus(query: str, corpus: list[dict[str, str]] | None = None) -&gt; str:
     &quot;&quot;&quot;Sorgudaki kelimelerden biri belge metninde geciyorsa belgeyi dondurur.&quot;&quot;&quot;
 
+    # Testler corpus parametresini verir. main() yerel CORPUS listesini kullanir.
     documents = CORPUS if corpus is None else corpus
     words = [word.lower() for word in query.split() if word.strip()]
     hits: list[str] = []
@@ -207,6 +214,7 @@ def search_corpus(query: str, corpus: list[dict[str, str]] | None = None) -&gt; 
         haystack = f&quot;{document[&#x27;title&#x27;]} {document[&#x27;body&#x27;]}&quot;.lower()
         if any(word in haystack for word in words):
             hits.append(f&quot;{document[&#x27;title&#x27;]}: {document[&#x27;body&#x27;]}&quot;)
+    # Bos string agent&#x27;i sessiz arac sanmasin diye acik cumle doner.
     if not hits:
         return &quot;No documents.&quot;
     return &quot;\n&quot;.join(hits)
@@ -309,10 +317,12 @@ def recommend_with_tool_strategy(question: str, model) -&gt; JobMatch:
             &#x27;{&quot;title&quot;:&quot;Data Analyst&quot;,&quot;company&quot;:&quot;Northwind&quot;,&quot;reason&quot;:&quot;sql tag&quot;}. &#x27;
             &quot;For a Python question, choose Acme or Bright instead of the example.&quot;
         ),
+        # ToolStrategy, JobMatch&#x27;i bir tool gibi cagirtir. Cevap semaya uymak zorundadir.
         response_format=ToolStrategy(JobMatch),
     )
     result = agent.invoke(
         {&quot;messages&quot;: [HumanMessage(content=question)]},
+        # Limit, model ornek JSON&#x27;u tekrar tekrar denerse donguyu keser.
         config={&quot;recursion_limit&quot;: 12},
     )
     # structured_response, dogrulanmis Pydantic nesnesidir. Ham JSON degil.
@@ -330,6 +340,7 @@ def recommend_with_provider_strategy(question: str, model) -&gt; JobMatch:
             &quot;Choose from Acme Junior Python Developer, &quot;
             &quot;Bright Junior Python Intern, or Northwind Data Analyst.&quot;
         ),
+        # ProviderStrategy, ayni semayi modelin kendi structured output yoluna verir.
         response_format=ProviderStrategy(JobMatch),
     )
     result = agent.invoke(
@@ -382,14 +393,19 @@ def first_python_job() -&gt; str:
     &quot;&quot;&quot;
 
     for job in JOBS:
+        # Tag tam &quot;python&quot; iceriyorsa ilk eslesmede dur.
         if &quot;python&quot; in job[&quot;tags&quot;]:
+            # Bright ikinci eslesmedir ve bu return yuzunden gorunmez.
             return f&quot;{job[&#x27;company&#x27;]}: {job[&#x27;title&#x27;]}&quot;
+    # Hic eslesme yoksa bos string degil, acik bir cumle doner.
     return &quot;No matching jobs.&quot;
 
 
 def main() -&gt; str:
+    # Beklenen metin &quot;Acme: Junior Python Developer&quot; olur.
     answer = first_python_job()
     print(answer)
+    # Acme ilk python ilanidir. Bright bu fonksiyona gelmez.
     return answer
 
 

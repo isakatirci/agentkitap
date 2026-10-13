@@ -11,6 +11,7 @@ class Sandbox:
     """Tek klasorle sinirli dosya okuma ve yazma."""
 
     def __init__(self, root: Path | str) -> None:
+        # resolve, goreli yolu mutlak yapar. Sonraki .. kontrolu buna bakar.
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
 
@@ -20,6 +21,7 @@ class Sandbox:
         if not name or name.startswith(("/", "\\")) or ".." in parts:
             raise PermissionError(f"path escapes sandbox: {name}")
         path = (self.root / name).resolve()
+        # Kokun kendisi ya da cocugu degilse yazma. Proje kokune cikilmaz.
         if path != self.root and self.root not in path.parents:
             raise PermissionError(f"path escapes sandbox: {name}")
         return path
@@ -28,6 +30,7 @@ class Sandbox:
         """Dosyayi sandbox icine yazar. Kisa bir onay cumlesi dondurur."""
 
         path = self._resolve(name)
+        # Alt klasor yoksa ac. Yazma yine sandbox icinde kalir.
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
         return f"wrote {name}"
@@ -35,4 +38,5 @@ class Sandbox:
     def read(self, name: str) -> str:
         """Sandbox icindeki dosyayi okur."""
 
+        # Okuma da ayni yolu kullanir. .. ile disari cikilmaz.
         return self._resolve(name).read_text(encoding="utf-8")

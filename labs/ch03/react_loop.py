@@ -42,6 +42,7 @@ def run_react_loop(
     scripti izler. Gercek model semadan tool_calls uretir.
     """
 
+    # Isimden fonksiyona sozluk. Bilinmeyen tool bu haritada yoktur.
     tool_map = {item.name: item for item in tools}
     # Bound model ayni invoke sozlesmesini tutar, ustune tool semasi tasir.
     bound = model.bind_tools(tools)

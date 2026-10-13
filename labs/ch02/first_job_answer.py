@@ -15,14 +15,19 @@ def first_python_job() -> str:
     """
 
     for job in JOBS:
+        # Tag tam "python" iceriyorsa ilk eslesmede dur.
         if "python" in job["tags"]:
+            # Bright ikinci eslesmedir ve bu return yuzunden gorunmez.
             return f"{job['company']}: {job['title']}"
+    # Hic eslesme yoksa bos string degil, acik bir cumle doner.
     return "No matching jobs."
 
 
 def main() -> str:
+    # Beklenen metin "Acme: Junior Python Developer" olur.
     answer = first_python_job()
     print(answer)
+    # Acme ilk python ilanidir. Bright bu fonksiyona gelmez.
     return answer
 
 

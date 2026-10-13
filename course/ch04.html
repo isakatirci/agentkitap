@@ -93,11 +93,13 @@ def extract_tool_call(message: dict) -&gt; tuple[str, dict] | None:
     Tool yoksa None doner; dongu o zaman nihai metni alir.
     &quot;&quot;&quot;
 
+    # LangChain AIMessage degil, Ollama&#x27;nin ham sozlugudur.
     calls = message.get(&quot;tool_calls&quot;) or []
     if not calls:
         return None
     function = calls[0][&quot;function&quot;]
     arguments = function[&quot;arguments&quot;]
+    # Bazi cevaplarda arguments zaten sozluk, bazilarinda JSON metnidir.
     if isinstance(arguments, str):
         arguments = json.loads(arguments)
     return function[&quot;name&quot;], arguments
@@ -176,6 +178,7 @@ def main(client=None) -&gt; str:
     chosen = client or OllamaClient()
     answer = run_raw_agent(&quot;Find python jobs&quot;, chosen, LocalTracer())
     print(answer)
+    # Cevap, tool bitince modelin son content metnidir.
     return answer
 
 

@@ -18,18 +18,23 @@ def summarize_as_bullets(text: str, model) -> str:
     Sema Chapter 2 structured output konusudur.
     """
 
+    # "three bullet" talimati modele giden metnin parcasi olur.
     prompt = ChatPromptTemplate.from_template(
         "Summarize the text as three bullet points.\n\nText:\n{text}"
     )
+    # Chain yine prompt, sonra modeldir. Tek cumlelik labdan farki bu satirdir.
     message = (prompt | model).invoke({"text": text})
+    # Donen sey hala serbest metindir, Pydantic nesnesi degildir.
     return str(message.content)
 
 
 def main(model=None) -> str:
     source = "Python, tests, and agents help a junior ship small programs."
+    # model verilmezse Gemma kullanilir. Test scriptli model gecirir.
     chosen = model or make_chat_model()
     answer = summarize_as_bullets(source, chosen)
     print(answer)
+    # Madde isaretleri modelden gelir. Kod onlarin yerini zorlamaz.
     return answer
 
 

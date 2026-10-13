@@ -47,6 +47,7 @@ def trace_messages(messages: list, tracer: LocalTracer) -> None:
 def run_job_agent(question: str, model, tracer: LocalTracer | None = None) -> str:
     """Soru sorar, search_jobs aracini kullanir, son metni dondurur."""
 
+    # create_agent, model + tool + system prompt ile donguyu kurar.
     agent = create_agent(
         model=model,
         tools=[search_jobs],
@@ -60,6 +61,7 @@ def run_job_agent(question: str, model, tracer: LocalTracer | None = None) -> st
         # recursion_limit, model tool'u birakmazsa donguyu keser.
         config={"recursion_limit": 10},
     )
+    # Tracer verilmezse dongu yine calisir. Iz yalnizca istenince yazilir.
     if tracer is not None:
         trace_messages(result["messages"], tracer)
     last = result["messages"][-1]
@@ -67,6 +69,7 @@ def run_job_agent(question: str, model, tracer: LocalTracer | None = None) -> st
 
 
 def main(model=None) -> str:
+    # Tool calling icin Qwen. Gemma bu Ollama surumunde tool semasini reddeder.
     chosen = model or make_tool_model()
     answer = run_job_agent("Find python jobs", chosen, LocalTracer())
     print(answer)

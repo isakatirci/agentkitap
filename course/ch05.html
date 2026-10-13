@@ -74,9 +74,11 @@ Final Answer: the jobs you found
 def extract_final_answer(text: str) -&gt; str | None:
     &quot;&quot;&quot;Final Answer satirindan sonrasini alir. Yoksa None.&quot;&quot;&quot;
 
+    # DOTALL, cevabin alt satirlara tasmasina izin verir.
     match = re.search(r&quot;Final Answer:\s*(.*)&quot;, text, re.DOTALL)
     if match is None:
         return None
+    # Basindaki ve sonundaki bosluklar cevabin parcasi sayilmaz.
     return match.group(1).strip()
 
 
@@ -154,6 +156,7 @@ def main(model=None) -&gt; str:
     chosen = model or make_chat_model()
     answer = run_prompt_react(&quot;Find python jobs&quot;, chosen, LocalTracer())
     print(answer)
+    # Bu lab tool API&#x27;si kullanmaz. Gemma yeter.
     return answer
 
 
