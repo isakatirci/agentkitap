@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>Chapter 1 — LangChain Foundations</title>
+  <link rel="stylesheet" href="css/course.css">
+</head>
+<body>
+<nav>
+  <a href="index.html">Kurs</a>
+  <a href="ch01.html">1 Foundations</a>
+  <a href="ch02.html">2 First agent</a>
+  <a href="glossary.html">Glossary</a>
+</nav>
+<main>
+  <h1>Chapter 1 — LangChain Foundations</h1>
+  <p>Bu bolum bir agent yazmaz. Agent'tan once duran uc parcayi kurar: ayar dosyasi, prompt template ve chat model. Bunlar bir chain icinde birbirine baglanir. Sonra ayni chain yerel Gemma modeline tasinir ve her model cagrisi bir trace satirina yazilir.</p>
+
+  <div class="goal">
+    <p>Bu bolumun sonunda su isleri tek basiniza yapabilirsiniz: <code>.env</code> dosyasindan <code>MODEL</code> okumak, bir metni <code>ChatPromptTemplate</code> ile tek cumleye ozetlemek, donen nesnenin <code>AIMessage</code> oldugunu gorup <code>content</code> alanini almak, ayni chain'i baska bir chat model ile calistirmak ve o cagriyi yerel trace'e yazmak.</p>
+  </div>
+
+  <h2>1. Proje, ortam ve gizli degerler</h2>
+  <dl class="term">
+    <dt><span>environment variable</span></dt>
+    <dd>Isletim sisteminin programa verdigi isimli deger. Kodun icine sifre yazmak yerine bu isimler okunur.</dd>
+    <dt><span>.env</span></dt>
+    <dd>Environment variable listesini tutan yerel dosya. Git'e girmez.</dd>
+  </dl>
+  <p>Junior developer'in ilk hatasi, model adini ve API anahtarini <code>.py</code> dosyasinin tepesine yazmaktir. Dosya paylasilinca anahtar da paylasilir. Ikinci hata, anahtari hic ayirmadan "bende calisiyor" deyip baska bilgisayarda ayni kodun neden durdugunu anlamamaktir. Ayar bir isimdir. Kod o ismi okur. Deger makinede kalir.</p>
+  <p>Bu kurs ucretli bir anahtar istemez. Yine de aliskanlik ayni olsun. <code>.env.example</code> sadece isimleri gosterir: <code>MODEL</code>, <code>LANGSMITH_TRACING</code>, <code>TAVILY_API_KEY</code>. Gercek <code>.env</code> kopyasidir ve <code>.gitignore</code> icindedir. Bos birakilan Tavily satiri, "bu isim var, degeri yok, lab onu kullanmiyor" demektir.</p>
+  <p>Python paketleri proje klasorune degil, sanal ortama kurulur. <code>py -3.12 -m venv .venv</code> komutu 3.12 yorumlayicisina ait bir <code>.venv</code> klasoru acar. Kurs 3.12 ister cunku LangChain tekerlekleri bu surumde saglamdir. Komutlar <code>.venv\Scripts\python.exe</code> ile calisirsa sistemdeki Python 3.14 karismaz.</p>
+  <p>Kod bicimi de ayarin parcasidir. Black veya Ruff, satir uzunlugunu ve bosluklari sizin yerinize duzeltir. Mantigi degistirmez. Bu bolumdeki lablar zaten o duzende yazilidir: bir fonksiyon bir is yapar, isimler Ingilizce, yorumlar Turkce. Bicim araci "neden" sorusunu cevaplamaz; "goz yorulmasin" diye vardir.</p>
+  <p>Asagidaki program <code>python-dotenv</code> paketindeki <code>dotenv_values</code> fonksiyonunu kullanir. Dosyayi okur, yorum satirini atlar, sozluk dondurur. Ortam degiskenlerini sessizce degistirmez. Test, gercek makinenizdeki <code>MODEL</code> degerine bagli kalmaz.</p>
+  <div class="run"><p>Calistirma: <code>.\.venv\Scripts\python.exe labs\ch01\load_env.py</code></p><p>Beklenen cikti: <code>MODEL=gemma3:4b</code></p></div>
+  <pre><code data-lab="labs/ch01/load_env.py">&quot;&quot;&quot;Ortam degiskenlerini kod icinde okumak.
+
+Junior notu: API anahtari ve model adi koda yazilmaz. .env dosyasinda durur,
+kod sadece isimleri okur. .env git&#x27;e girmez; .env.example girer.
+&quot;&quot;&quot;
+
+from pathlib import Path
+
+from dotenv import dotenv_values
+
+
+def load_settings(path: str) -&gt; dict[str, str]:
+    &quot;&quot;&quot;KEY=VALUE dosyasini sozluge cevir.
+
+    dotenv_values yorum satirlarini (#) ve bos satirlari atlar.
+    Dosyayi islem ortamina yazmaz; sadece sozluk dondurur.
+    Boylece testler gercek ortam degiskenlerini kirletmez.
+    &quot;&quot;&quot;
+
+    # Path, Windows ve ders klasoru icin ayni sekilde calisir.
+    env_path = Path(path)
+    # Donen degerler str veya None olabilir. None olanlari almuyoruz.
+    raw = dotenv_values(env_path)
+    settings: dict[str, str] = {}
+    for key, value in raw.items():
+        if value is None:
+            continue
+        settings[key] = value
+    return settings
+
+
+def main(env_path: str = &quot;.env.example&quot;) -&gt; dict[str, str]:
+    &quot;&quot;&quot;Ornek dosyayi okuyup MODEL anahtarini gosterir.&quot;&quot;&quot;
+
+    settings = load_settings(env_path)
+    # MODEL, ChatOllama&#x27;ya verilecek yerel model adidir.
+    print(f&quot;MODEL={settings.get(&#x27;MODEL&#x27;, &#x27;&#x27;)}&quot;)
+    return settings
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre>
+
+  <h2>2. Prompt template, chat model ve chain</h2>
+  <dl class="term">
+    <dt><span>prompt template</span></dt>
+    <dd>Icinde <code>{text}</code> gibi bosluklar olan kalip. Calisma aninda dolar.</dd>
+    <dt><span>chat model</span></dt>
+    <dd>Mesaj listesi alip assistant mesaji donduren model. Bu kursta <code>ChatOllama</code>.</dd>
+    <dt><span>chain</span></dt>
+    <dd>Bir adimin ciktisini sonraki adimin girdisi yapan boru.</dd>
+    <dt><span>LCEL</span></dt>
+    <dd>LangChain Expression Language. Baglantiyi <code>|</code> ile yazarsiniz.</dd>
+  </dl>
+  <p>Bir prompt, modele giden metindir. Ayni metni her seferinde tirnak icinde birlestirmek ise junior kodunu kirilgan yapar. Unvan degisir, dil degisir, kullanici metni tirnak icinde tirnak bozar. Prompt template kalibi ayri tutar. Bosluklar veri, cumleler talimattir.</p>
+  <p><code>ChatPromptTemplate.from_template</code> tek bir human mesaji kurar. Sablon soyle durur: "Summarize the text in one sentence." Ardindan <code>Text:</code> ve <code>{text}</code>. <code>invoke({"text": paragraf})</code> cagrisi boslugu doldurur. Model ham paragrafi gormez. Doldurulmus mesaji gorur. Bu ayrim onemlidir. Hata ayiklarken "ben bunu gondermistim" demeden once, template'in urettigi mesaji okuyun.</p>
+  <p>Chat model bir fonksiyon gibi durur ama duz string dondurmez. Girdi bir mesaj listesidir. Cikti bir <code>AIMessage</code> nesnesidir. LangChain bu nesneyi tum saglayicilarda ayni sekilde tutar. Ollama da, ileride bakacaginiz bulut model de ayni <code>invoke</code> sozunu tutar. Bu yuzden ders kodu <code>model</code> parametresi alir. Test, scriptli bir <code>FakeChatModel</code> verir. Siz komutu dogrudan calistirirsaniz <code>make_chat_model()</code> yerel <code>gemma3:4b</code> modelini, <code>temperature=0</code> ile acar.</p>
+  <p><code>temperature</code> rastgeleligi ayarlar. 0, ayni soruya daha kararli cevap demektir. Yaratici yazida yukseltilir. Ozet ve agent icin 0 birakilir ki bugun calisan ornek yarin bambaaska cumle kurmasin. <code>num_predict</code> ise cevabin uzunlugunu keser. Kesilmezse kucuk bir model sayfalarca yazar ve lab donmus gibi durur. Yine de model bir insan degildir; 0 bile kelimesi kelimesine garanti vermez. Testler bu yuzden canli modelin cumlesini kilitlemez. Scriptli model kilitlenir.</p>
+  <p>Chain, bu iki adimin adidir. LCEL'de <code>prompt | model</code> okunusu sudur: once prompt calissin, ciktisi modele gitsin. Siz ara sonucu elle tasimazsiniz. Ozet labi tam olarak bu borudur.</p>
+
+  <h2>3. Metin ozeti</h2>
+  <p>Ilk gercek is, kisa bir paragrafi tek cumleye indirmektir. Chain'e sozluk verirsiniz. Anahtar, template'teki isimle ayni olmalidir: <code>text</code>. Donus degeri metin degildir. <code>summarize</code> fonksiyonu <code>content</code> alanini stringe cevirip dondurur. Boylece cagiran taraf nesne tasimaz.</p>
+  <p>Neden tek cumle? Cunku ilk labda olcum kolay olsun. "Ozet iyi mi" sorusu ayri bir derstir. Burada soru sudur: metin modele gitti mi, content geri geldi mi? Scriptli test her ikisini de bakar. Canli Gemma calistirilirsa cumle Ingilizce ve kisa olur; talimat Ingilizcedir, model talimati izler.</p>
+  <div class="run"><p>Calistirma: <code>.\.venv\Scripts\python.exe labs\ch01\summarize_chain.py</code></p><p>Beklenen: Python'un yeni baslayanlar icin bir dil oldugunu soyleyen tek cumle. Cumle her calistirmada ayni kelimeler olmayabilir. Bos cikti bir hatadir.</p></div>
+  <pre><code data-lab="labs/ch01/summarize_chain.py">&quot;&quot;&quot;Prompt template ve chain ile metin ozeti.
+
+Bir chain, bir adimin ciktisini sonraki adima verir.
+Burada ilk adim prompt template, ikinci adim chat modeldir.
+LCEL&#x27;de bu baglanti | operatoru ile yazilir.
+&quot;&quot;&quot;
+
+from langchain_core.messages import AIMessage
+from langchain_core.prompts import ChatPromptTemplate
+
+from labs.kit.models import make_chat_model
+
+
+def build_summarize_chain(model):
+    &quot;&quot;&quot;Tek cumlelik ozet isteyen chain.
+
+    {text} bir bosluktur. invoke sirasinda gercek metin oraya yapisir.
+    Model ham metni degil, bu kalibin doldurulmus halini gorur.
+    &quot;&quot;&quot;
+
+    # from_template, tek bir human mesaji ureten prompt template kurar.
+    prompt = ChatPromptTemplate.from_template(
+        &quot;Summarize the text in one sentence.\n\nText:\n{text}&quot;
+    )
+    # | operatoru: once prompt calisir, ciktisi modele gider.
+    return prompt | model
+
+
+def summarize(text: str, model) -&gt; str:
+    &quot;&quot;&quot;Metni chain&#x27;den gecirip modelin content alanini dondurur.
+
+    invoke sozlugu, template icindeki {text} boslugunu doldurur.
+    Chat model bir AIMessage dondurur. Junior&#x27;in okumasi gereken
+    alan content&#x27;tir; nesnenin kendisi duz yazi degildir.
+    &quot;&quot;&quot;
+
+    chain = build_summarize_chain(model)
+    message = chain.invoke({&quot;text&quot;: text})
+    # Bazi chain&#x27;ler duz str dondurebilir. Bu kurs chat model kullandigi
+    # icin beklenti AIMessage&#x27;tir. Yine de str gelirse onu oldugu gibi alin.
+    if isinstance(message, str):
+        return message
+    if not isinstance(message, AIMessage):
+        return str(message.content)
+    return str(message.content)
+
+
+def main(model=None) -&gt; str:
+    &quot;&quot;&quot;Kucuk bir paragrafi ozetler. model verilmezse yerel Gemma kullanilir.&quot;&quot;&quot;
+
+    source = (
+        &quot;Python is a programming language used by beginners. &quot;
+        &quot;It reads like English and is common in automation.&quot;
+    )
+    chosen = model or make_chat_model()
+    summary = summarize(source, chosen)
+    print(summary)
+    return summary
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre>
+
+  <h2>4. Response nesnesini okumak</h2>
+  <dl class="term">
+    <dt><span>AIMessage</span></dt>
+    <dd>Modelin dondurdugu mesaj. Metin <code>content</code> icindedir. Arac istegi <code>tool_calls</code> icindedir.</dd>
+  </dl>
+  <p>Konsola <code>print(message)</code> yazarsaniz uzun bir nesne gorursunuz: id, ek alanlar, bos tool listesi. Ozet o ciktirmanin tamami degildir. Junior'in bakacagi uc alan vardir.</p>
+  <ul>
+    <li><code>type</code> degeri <code>ai</code> ise bu bir model cevabidir. Kullanici mesaji <code>human</code> olur.</li>
+    <li><code>content</code> gosterilecek metindir. Bos string, modelin bu turda yazi yerine arac istemis olabilecegi anlamina gelir. Chapter 2'de bunu goreceksiniz.</li>
+    <li><code>tool_calls</code> bos liste ise model arac istememistir. Doluysa her oge bir ad, bir arguman sozlugu ve bir <code>id</code> tasir.</li>
+  </ul>
+  <p>Asagidaki lab modele gitmez. Elle bir <code>AIMessage</code> kurar ve uc alani sozluge koyar. Amac, canli model kosturmadan nesnenin sekline alis manizdir. Gercek ozet labinda donen sey de bu siniftandir.</p>
+  <div class="run"><p>Calistirma: <code>.\.venv\Scripts\python.exe labs\ch01\read_response.py</code></p><p>Beklenen: <code>type</code> alani <code>ai</code>, <code>content</code> dolu, <code>tool_calls</code> bos liste.</p></div>
+  <pre><code data-lab="labs/ch01/read_response.py">&quot;&quot;&quot;Model cevabini nesne olarak okumak.
+
+Junior&#x27;lar siklikla print(response) yapip tum nesneyi cumle sanir.
+Asil metin content alanindadir. tool_calls bos ise model arac istememis demektir.
+&quot;&quot;&quot;
+
+from langchain_core.messages import AIMessage
+
+
+def describe_response(message: AIMessage) -&gt; dict:
+    &quot;&quot;&quot;AIMessage icinden junior&#x27;in bakacagi uc alani cikarir.
+
+    type: mesajin rolu. Model cevabinda bu deger &quot;ai&quot; olur.
+    content: kullaniciya gosterilecek metin.
+    tool_calls: model bir tool istiyorsa burasi dolu olur. Chapter 2&#x27;de kullanilir.
+    &quot;&quot;&quot;
+
+    return {
+        &quot;type&quot;: message.type,
+        &quot;content&quot;: message.content,
+        &quot;tool_calls&quot;: list(message.tool_calls),
+    }
+
+
+def main() -&gt; dict:
+    &quot;&quot;&quot;Elle kurulmus bir AIMessage ile alanlari yazdirir.
+
+    Bu dosya modele gitmez. Amac, response nesnesinin şeklini gormektir.
+    &quot;&quot;&quot;
+
+    sample = AIMessage(content=&quot;Python is beginner friendly.&quot;, tool_calls=[])
+    info = describe_response(sample)
+    print(info)
+    return info
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre>
+
+  <h2>5. Yerel open-weight model: Ollama ve Gemma</h2>
+  <dl class="term">
+    <dt><span>open-weight model</span></dt>
+    <dd>Agirliklari indirip kendi makinenizde calistirabildiginiz model. Bu kursta Gemma 3 4B.</dd>
+    <dt><span>Ollama</span></dt>
+    <dd>Yerel modeli bir HTTP servisi gibi sunan program. LangChain tarafi <code>ChatOllama</code> sinifidir.</dd>
+  </dl>
+  <p>Kitaptaki ornekler siklikla bulut modeliyle baslar, sonra ayni kodu Ollama'ya tasir. Bu kursta sira tersine cevrildi cunku dogrulanan yol ucretli anahtar istemez. Fikir aynidir: chain degismez, chat model degisir.</p>
+  <p><code>make_chat_model()</code> su an <code>ChatOllama(model="gemma3:4b", temperature=0)</code> dondurur. Ollama servisi <code>127.0.0.1:11434</code> adresinde dinler. Model yoksa <code>ollama pull gemma3:4b</code> indirir. Indirme bir kez yapilir. Bu Ollama surumu <code>gemma3:4b</code> ile <code>tools</code> listesini reddeder. Tool calling bolumleri bu yuzden <code>make_tool_model()</code> ile <code>qwen2.5:3b</code> kullanir. Ikisi de yereldir.</p>
+  <p>Baska bir modele gecmek fabrikada model adini degistirmektir. Uygulama fonksiyonu <code>main(model=None)</code> seklindedir. Arguman bos ise fabrika calisir. Test, ayni fonksiyona scriptli model verir ve "Local summary." metnini bekler. Yani siz Gemma'nin cumlesini ezberlemezsiniz. Kod yolunun calistigini, canli calistirmada da bos olmayan bir ozet geldigini gorursunuz.</p>
+  <div class="run"><p>Calistirma: <code>.\.venv\Scripts\python.exe labs\ch01\swap_model.py</code></p><p>Beklenen: yerel modelin tek cumlelik ozeti. Servis kapaliysa baglanti hatasi alirsiniz. Once <code>ollama serve</code> calismalidir.</p></div>
+  <pre><code data-lab="labs/ch01/swap_model.py">&quot;&quot;&quot;Ayni chain, farkli chat model.
+
+Uygulama kodu modelin nereden geldigini bilmemeli.
+make_chat_model() varsayilan olarak yerel Gemma dondurur.
+Testler ayni main() fonksiyonuna FakeChatModel verir.
+Bulut modeline gecmek, bu fabrikada tek satiri degistirmektir.
+&quot;&quot;&quot;
+
+from langchain_core.prompts import ChatPromptTemplate
+
+from labs.kit.models import make_chat_model
+
+
+def summarize_with(model, text: str) -&gt; str:
+    &quot;&quot;&quot;Chapter 1 ozet chain&#x27;inin modelden bagimsiz hali.
+
+    Prompt ayni kalir. Degisen sadece invoke edilen chat modeldir.
+    &quot;&quot;&quot;
+
+    prompt = ChatPromptTemplate.from_template(
+        &quot;Summarize the text in one sentence.\n\nText:\n{text}&quot;
+    )
+    chain = prompt | model
+    message = chain.invoke({&quot;text&quot;: text})
+    return str(message.content)
+
+
+def main(model=None) -&gt; str:
+    &quot;&quot;&quot;model None ise Ollama Gemma, degilse verilen model kullanilir.&quot;&quot;&quot;
+
+    source = &quot;Local open-weight models can run on your own machine.&quot;
+    chosen = model or make_chat_model()
+    summary = summarize_with(chosen, source)
+    print(summary)
+    return summary
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre>
+
+  <h2>6. Trace: ne gitti, ne dondu</h2>
+  <dl class="term">
+    <dt><span>trace</span></dt>
+    <dd>Bir chain veya agent calismasinin adim gunlugu. Hangi prompt gitti, model ne dedi, varsa hangi tool calisti.</dd>
+    <dt><span>LangSmith</span></dt>
+    <dd>Bu gunlugun buluttaki ekrani. <code>LANGSMITH_TRACING=true</code> ve bir API anahtari ister. Kurs onsuz da ayni olayi yerel yazar.</dd>
+  </dl>
+  <p>Ozet yanlis cikinca junior genellikle talimati bastan yazar. Once trace'e bakmak daha ucuzdur. Soru uc tanedir. Template gercekten kullanici metnini yapistirdi mi? Model o metne cevap mi verdi, yoksa bos mu dondu? Kac kez cagrildi?</p>
+  <p>Bu labda tek bir chain vardir, tool yoktur. Trace'te tam bir <code>llm</code> olayi gorursunuz. Prompt alaninda sizin verdiginiz metin, response alaninda <code>content</code> vardir. Chapter 2'de ayni gunluge <code>tool</code> satiri girecek. Sira soyle olacak: llm, tool, llm. O sira, agent'in "dusun, arac kullan, sonucu gor, cevapla" dongusudur. Simdilik tek satir yeter.</p>
+  <p>LangSmith acilirsa ayni kosu orada da gorunur. Proje adi <code>.env.example</code> icinde <code>agent-course</code> olarak durur. Anahtar yokken kutuphane izi yerel birakmak zorunda degildir; biz izi kendimiz <code>LocalTracer</code> ile yaziyoruz. Iki ekran ayni soruya cevap verir: bu calismada model kac kez konustu?</p>
+  <div class="run"><p>Calistirma: <code>.\.venv\Scripts\python.exe labs\ch01\trace_chain.py</code></p><p>Beklenen: once ozet cumlesi, sonra icinde tek <code>kind: llm</code> olan bir liste.</p></div>
+  <pre><code data-lab="labs/ch01/trace_chain.py">&quot;&quot;&quot;Chain calismasini yerel trace&#x27;e yazmak.
+
+LangSmith ayni fikrin bulut ekranidir: hangi prompt gitti, model ne dedi.
+Bu lab hesap acmadan ayni olayi LocalTracer icine yazar.
+&quot;&quot;&quot;
+
+from langchain_core.prompts import ChatPromptTemplate
+
+from labs.kit.models import make_chat_model
+from labs.kit.tracer import LocalTracer
+
+
+def traced_summarize(text: str, model, tracer: LocalTracer) -&gt; str:
+    &quot;&quot;&quot;Ozet uretir ve tek bir llm olayi kaydeder.
+
+    prompt alanina kullanicinin verdigi metin yazilir ki izde
+    &#x27;modele ne sorduk&#x27; gorulsun. response, modelin content degeridir.
+    &quot;&quot;&quot;
+
+    prompt = ChatPromptTemplate.from_template(
+        &quot;Summarize the text in one sentence.\n\nText:\n{text}&quot;
+    )
+    message = (prompt | model).invoke({&quot;text&quot;: text})
+    answer = str(message.content)
+    # Trace, chain bittikten sonra da okunabilsin diye ayri nesnededir.
+    tracer.record_llm(prompt=text, response=answer)
+    return answer
+
+
+def main(model=None) -&gt; str:
+    &quot;&quot;&quot;Bir ozeti calistirir ve trace satirini yazdirir.&quot;&quot;&quot;
+
+    tracer = LocalTracer()
+    chosen = model or make_chat_model()
+    answer = traced_summarize(&quot;Tracing shows each model call.&quot;, chosen, tracer)
+    print(answer)
+    print(tracer.events)
+    return answer
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre>
+
+  <h2>Uygulama</h2>
+  <div class="qa">
+    <p><strong>Soru 1.</strong> <code>.env</code> neden git deposuna girmez de <code>.env.example</code> girer?</p>
+  </div>
+  <div class="qa">
+    <p><strong>Soru 2.</strong> Prompt template ile doldurulmus prompt ayni sey midir? Ozet labinda modele giden metin, sizin verdiginiz paragrafin aynisi midir?</p>
+  </div>
+  <div class="qa">
+    <p><strong>Soru 3.</strong> <code>prompt | model</code> ifadesi kod olarak ne yapar? Ara sonucu neden elle tasimiyoruz?</p>
+  </div>
+  <div class="qa">
+    <p><strong>Soru 4.</strong> <code>print(response)</code> neden ozetin kendisi sayilmaz? Hangi alan okunmalidir? <code>tool_calls</code> bos ise bu ne anlama gelir?</p>
+  </div>
+  <div class="qa">
+    <p><strong>Soru 5.</strong> <code>temperature=0</code> ne ise yarar? Canli Gemma testi neden modelin cumlesini kelimesi kelimesine kilitlemez?</p>
+  </div>
+  <div class="qa">
+    <p><strong>Soru 6.</strong> Bu bolumun trace labinda kac <code>llm</code> olayi vardir? LangSmith ekrani acilmadan ayni bilgi nereden okunur?</p>
+  </div>
+  <div class="qa">
+    <p><strong>Soru 7.</strong> <code>summarize_chain.py</code> icindeki talimati degistirin. Modelden tek cumle degil, tam uc madde isteyin. Cozum asagidaki cevap dosyasindadir. Calistirin: <code>.\.venv\Scripts\python.exe labs\ch01\bullet_summary_answer.py</code></p>
+  </div>
+
+  <h2>Cevap anahtari</h2>
+  <div class="answer">
+    <p><strong>Cevap 1.</strong> <code>.env</code> makineye ozel deger tasir: model adi, iz anahtari, ileride eklenecek ucretli anahtar. Depoya girerse anahtar gecmis commit'lerde kalir. <code>.env.example</code> sadece isimleri gosterir, degerleri bos veya ornek birakir. Baska bir gelistirici dosyayi kopyalar, kendi degerini yazar, kodu degistirmez.</p>
+  </div>
+  <div class="answer">
+    <p><strong>Cevap 2.</strong> Ayni sey degildir. Template kaliptr. Doldurulmus prompt, kalibin <code>{text}</code> yerine paragraf yapismis halidir. Modele giden metin paragrafin aynisi degildir. Onunde "Summarize the text in one sentence." talimati vardir. Hata ayiklarken <code>model.calls</code> veya trace'deki prompt alanina bakin, kendi degiskeninize degil.</p>
+  </div>
+  <div class="answer">
+    <p><strong>Cevap 3.</strong> <code>|</code> once soldaki runnable'i calistirir, ciktisini sagdakine verir. Solda prompt template mesaj listesi uretir. Sagda chat model o listeyi <code>AIMessage</code> yapar. Elle tasimak ayni isin daha uzun ve daha kolay bozulan halidir. Chain buyuyunce (ciktiyi bicimlemek, ikinci bir adim eklemek) boruya yeni bir halka eklersiniz.</p>
+  </div>
+  <div class="answer">
+    <p><strong>Cevap 4.</strong> <code>print(response)</code> tum nesneyi basar: tip, id, ek alanlar. Gosterilecek metin <code>content</code> alanidir. <code>tool_calls</code> bos liste ise model bu cevapta bir tool istememistir. Dolu olsaydi content bos kalabilir ve asil istek arac listesinde dururdu. Ozet labinda liste bostur cunku talimat yazi ister.</p>
+  </div>
+  <div class="answer">
+    <p><strong>Cevap 5.</strong> <code>temperature</code> uretimin rastgeleligini ayarlar. 0, daha kararli cevap icindir. Kararlılik, ayni cumlenin kilitli oldugu anlamina gelmez. Canli model her calistirmada es anlamli baska bir cumle kurabilir. Test, scriptli modelde tam metni kilitler. Canli smoke test ise cumlenin bos olmadigina ve kaynak metnin gonderildigine bakar.</p>
+  </div>
+  <div class="answer">
+    <p><strong>Cevap 6.</strong> Bir <code>llm</code> olayi vardir. Tool yoktur, ikinci bir model cagrisi yoktur. Bilgi <code>LocalTracer.events</code> listesindedir. LangSmith ayni kosunun bulut kopyasidir. Anahtar yokken yerel liste yeter.</p>
+  </div>
+  <div class="answer">
+    <p><strong>Cevap 7.</strong> Talimat cumlesi "three bullet points" ister. Chain yine <code>prompt | model</code> seklindedir. Bu hala serbest metindir, alanlari olan bir nesne degildir. Structured output Chapter 2'dedir.</p>
+    <pre><code data-lab="labs/ch01/bullet_summary_answer.py">&quot;&quot;&quot;Uygulama cevabi: ozeti uc madde olarak iste.
+
+Soru: summarize_chain.py icindeki talimati degistir.
+Modelden tek cumle degil, tam olarak uc madde iste.
+Asagidaki prompt bu degisikligin tam halidir.
+&quot;&quot;&quot;
+
+from langchain_core.prompts import ChatPromptTemplate
+
+from labs.kit.models import make_chat_model
+
+
+def summarize_as_bullets(text: str, model) -&gt; str:
+    &quot;&quot;&quot;Ayni chain deseni, farkli talimat.
+
+    &#x27;three bullet&#x27; ifadesi talimatin parcasi olarak modele gider.
+    Model yine serbest metin dondurur; madde isareti istemek sema degildir.
+    Sema Chapter 2 structured output konusudur.
+    &quot;&quot;&quot;
+
+    prompt = ChatPromptTemplate.from_template(
+        &quot;Summarize the text as three bullet points.\n\nText:\n{text}&quot;
+    )
+    message = (prompt | model).invoke({&quot;text&quot;: text})
+    return str(message.content)
+
+
+def main(model=None) -&gt; str:
+    source = &quot;Python, tests, and agents help a junior ship small programs.&quot;
+    chosen = model or make_chat_model()
+    answer = summarize_as_bullets(source, chosen)
+    print(answer)
+    return answer
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre>
+  </div>
+</main>
+</body>
+</html>

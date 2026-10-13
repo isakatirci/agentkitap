@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>LangChain Agent Kursu</title>
+  <link rel="stylesheet" href="css/course.css">
+</head>
+<body>
+<nav>
+  <a href="index.html">Kurs</a>
+  <a href="ch01.html">1 Foundations</a>
+  <a href="ch02.html">2 First agent</a>
+  <a href="ch03.html">3 Under the hood</a>
+  <a href="ch04.html">4 No framework</a>
+  <a href="ch05.html">5 ReAct prompt</a>
+  <a href="ch06.html">6 Prompt and context</a>
+  <a href="ch07.html">7 Deep agents</a>
+  <a href="capstone.html">Capstone</a>
+  <a href="glossary.html">Glossary</a>
+</nav>
+<main>
+  <h1 class="keep">LangChain Agent Kursu</h1>
+  <p>Junior developer icin uygulamali kurs. Anlatim Turkce, terimler Ingilizce. Her sorunun cevabi ayni sayfada, baskida ayri sayfada durur. Her kod ornegi <code>labs/</code> altinda calisan bir programdir; sayfadaki kod ile dosya aynidir.</p>
+
+  <h2>Nasil calistirilir</h2>
+  <ol>
+    <li>Python 3.12 kurulu olsun. Bu kurs 3.12 sanal ortami kullanir.</li>
+    <li>Proje kokunde: <code>py -3.12 -m venv .venv</code></li>
+    <li><code>.\.venv\Scripts\python.exe -m pip install -e ".[dev]"</code></li>
+    <li><code>.env.example</code> dosyasini <code>.env</code> olarak kopyalayin. Icine gercek anahtar yazmayin.</li>
+    <li>Ollama calissin. Iki yerel model indirilir: <code>ollama pull gemma3:4b</code> ve <code>ollama pull qwen2.5:3b</code>. Gemma duz metin lablarindadir. Bu Ollama surumu gemma3:4b ile tool calling kabul etmez. Agent lablarinda Qwen 2.5 3B kullanilir.</li>
+    <li>Bir lab: <code>.\.venv\Scripts\python.exe labs\ch01\summarize_chain.py</code></li>
+    <li>Testler: <code>.\.venv\Scripts\python.exe -m pytest</code></li>
+  </ol>
+  <div class="run">
+    <p>Ucretli OpenAI, LangSmith veya Tavily anahtari gerekmez. Duz metin Gemma 3 4B ile, tool calling Qwen 2.5 3B ile calisir. Bulut servisleri istege bagli degisim olarak anlatilir.</p>
+  </div>
+
+  <h2>Nasil yazdirilir</h2>
+  <p>Bolumu tarayicide acin. Yazdir penceresinde kagit A4, kenar bosluklari varsayilan, arka plan grafikleri kapali. Kod bloklari ve cevap kutulari sayfa ortasinda bolunmez. Cevap anahtari her dersin sonunda yeni sayfadan baslar. Tum kursu basmak icin bolumleri sirayla yazdirin.</p>
+
+  <h2>Mufredat</h2>
+  <ol>
+    <li><a href="ch01.html">LangChain foundations</a> — ortam, prompt template, chain, response, Ollama, trace</li>
+    <li><a href="ch02.html">First agent</a> — tool, tool calling, ReAct, arama, structured output</li>
+    <li><a href="ch03.html">Under the hood</a> — abstraction, ReAct loop, bind_tools</li>
+    <li><a href="ch04.html">No framework</a> — JSON schema, ham Ollama SDK</li>
+    <li><a href="ch05.html">ReAct prompt</a> — stop sequence, regex, observation</li>
+    <li><a href="ch06.html">Prompt and context</a> — zero-shot, few-shot, chain of thought, context window</li>
+    <li><a href="ch07.html">Deep agents and security</a> — harness, subagent, filesystem, savunmaci review</li>
+    <li><a href="capstone.html">Capstone</a> — is arama asistani</li>
+  </ol>
+  <p>Terimler: <a href="glossary.html">glossary</a>.</p>
+</main>
+</body>
+</html>

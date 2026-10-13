@@ -1,0 +1,29 @@
+[project]
+name = "agent-course"
+version = "0.1.0"
+description = "Hands-on LangChain agent course for junior developers"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "langchain>=1.0",
+  "langchain-ollama>=1.0",
+  "python-dotenv>=1.0",
+  "pydantic>=2",
+  "deepagents>=0.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+  "smoke: live Ollama checks; must pass in the final course verification",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["labs*"]

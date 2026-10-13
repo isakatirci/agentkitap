@@ -1,0 +1,187 @@
+Table of Contents
+
+Preface ........................................................................ xiii
+Free benefits with your book .................................................... xx
+
+Chapter 1: Understanding LangChain Foundations .......................... 1
+Project setup ................................................................... 2
+  Cloning the repository and creating a clean branch ...................... 2
+  Configuring git and environment variables ............................... 6
+    Loading environment variables in code ................................ 8
+    Formatting the code ................................................. 10
+LangChain Fundamentals: Prompt Templates, Chat Models, and Chains ....... 11
+  Prompt template and chat models ....................................... 14
+Building a LangChain chain to summarize text ............................ 16
+  Creating the LLM object ............................................... 19
+    Running the chain ................................................... 20
+    Debugging the response object ....................................... 22
+Using local Open-Weights models with LangChain and Ollama ............... 24
+  Installing Ollama and downloading Gemma ............................... 24
+  Updating the LangChain code ........................................... 27
+Integrating LangSmith for LangChain application tracing ................. 28
+  Setting up LangSmith .................................................. 29
+    Configuring the environment variables ............................... 30
+  Reviewing traces in LangSmith ......................................... 31
+    Switching back to gpt-3.5-turbo and comparing traces ............... 33
+    The traces view ..................................................... 34
+    Committing the code ................................................. 34
+Summary ................................................................ 36
+
+Chapter 2: Building Your First Agent .................................... 37
+AI agents – A high-level overview ....................................... 38
+  Creating an AI job search agent using GPT (demo) ...................... 39
+Why LLMs need tools ..................................................... 40
+The ReAct agent (aka the tool calling agent) ............................ 41
+  Historical evolution of LangChain ReAct agents ....................... 42
+Setting up environment for a LangChain search agent ..................... 43
+  Configuring environment variables ..................................... 45
+Creating your first LangChain agent with a tool and an LLM .............. 46
+  LangChain tools ....................................................... 46
+    Implementing the search tool ........................................ 47
+    Creating the agent .................................................. 48
+  Tracing the agent execution in LangSmith .............................. 50
+    The first LLM call .................................................. 51
+    Tool execution and the second LLM call .............................. 53
+Integrating real-world search with Tavily and LangChain tools ........... 54
+  Testing with a real-world query ....................................... 56
+  Using the built-in Tavily LangChain tool .............................. 57
+    Committing the code ................................................. 59
+Structured output with LangChain agents using Pydantic ................. 60
+  Defining the Pydantic models and source class ......................... 60
+  Adding structured output to the agent ................................ 61
+    Reviewing the trace in LangSmith .................................... 63
+Predictable agent responses with LangChain structured output ............ 64
+  Provider strategy ..................................................... 65
+  Tool strategy ......................................................... 65
+Summary ................................................................ 65
+References ............................................................. 66
+
+Chapter 3: Understanding Agents Under the Hood .......................... 67
+Understanding the three layers of abstraction ........................... 68
+Project theme overview .................................................. 70
+Understanding the ReAct algorithm/agent loop ............................ 72
+  The thought step ...................................................... 73
+  Action and observation ................................................ 74
+  The scratchpad and subsequent iterations .............................. 75
+Setting up the environment .............................................. 78
+  Initializing the project .............................................. 78
+
+Configuring environment variables ....................................... 79
+Downloading the local model ............................................. 79
+
+Layer 1: ReAct loop with LangChain tool calling ......................... 81
+Defining the tools ...................................................... 82
+Setting up the agent loop ............................................... 83
+Tool binding and defensive prompting .................................... 84
+  Building the prompt ................................................... 85
+Understanding the ReAct agent loop in LangChain ......................... 86
+  Implementing the agent loop ........................................... 86
+    Processing the tool call ............................................ 87
+    Feeding results back into the loop .................................. 89
+    Verifying the trace in LangSmith .................................... 90
+    Switching models .................................................... 91
+Summary ................................................................ 92
+
+Chapter 4: Building Agent Loop Without a Framework ...................... 93
+Layer 1 – manual JSON schemas vs. LangChain tool abstraction ............ 94
+  Defining tools without a decorator .................................... 95
+  Writing the JSON schema manually ...................................... 99
+Building a ReAct agent loop with the raw Ollama SDK .................... 101
+  Setting up the tools dictionary and updating message formatting ...... 102
+  Updating the agent loop .............................................. 103
+    Extracting tool name and arguments ................................. 104
+    Running the agent loop ............................................ 105
+    Verifying the trace in LangSmith .................................. 109
+Summary ............................................................... 110
+
+Chapter 5: ReAct From Scratch: Building an Agent Loop Without Function Calling ............................................................... 113
+Understanding ReAct prompt and its role in agent reasoning ............. 114
+Understanding agent loop structure and workflow ........................ 117
+Creating tool descriptions for the ReAct prompt ........................ 120
+  Inspecting tool descriptions output .................................. 123
+Demonstrating the ReAct prompt as a reasoning engine in the agent loop . 127
+  Configuring stop sequences and parsing model output .................. 129
+
+Unified prompt construction and output control ........................ 132
+  Debugging prompt formatting and stop sequence configuration .......... 134
+  Examining the raw response from the LLM .............................. 135
+  Distinguishing raw output from messages .............................. 140
+Parsing the final answer from the LLM output ........................... 141
+  Using regular expressions to extract the final answer ................ 142
+  Example: Extracting the final answer from a LangSmith trace .......... 142
+  Final answer extraction logic ........................................ 144
+Regular expression-based action extraction ............................. 147
+  Extracting argument values from inputs ............................... 148
+Executing tools ....................................................... 149
+Handling tool execution observations ................................... 150
+Type mismatch error handling ........................................... 152
+Tracing agent reasoning and output ..................................... 153
+Abstracting parsing with agent frameworks .............................. 156
+Summary ............................................................... 156
+
+Chapter 6: Prompt and Context Engineering .............................. 157
+The GIST of LLMs ...................................................... 158
+  Language models produce tokens, not actions .......................... 158
+  What is a prompt? Composition of a formal prompt ..................... 160
+Prompting techniques: from zero-shot to ReAct .......................... 162
+  Zero-Shot Prompting .................................................. 162
+  Few-Shot Prompting ................................................... 163
+  From zero-shot instructions to in-context examples ................... 164
+Chain of thought prompting ............................................. 165
+ReAct prompting ........................................................ 170
+Function calling ....................................................... 174
+  Understanding function calling for LLMs .............................. 175
+  Why function calling replaced the ReAct prompt ....................... 177
+  Advantages and disadvantages of function calling ..................... 179
+Prompt engineering: quick tips ......................................... 181
+  Tip 1 ............................................................... 182
+  Tip 2 ............................................................... 182
+  Tip 3 ............................................................... 182
+
+Context engineering .................................................... 183
+  The context window ................................................... 185
+  Why writing a better prompt has stopped working ...................... 186
+  The window is a ledger, not a container .............................. 186
+  Three ways a context window can fail an agent run .................... 187
+Summary ............................................................... 188
+
+Chapter 7: Agent Harnesses and Deep Agents ............................. 189
+Agent taxonomy in production systems ................................... 190
+Shallow agents and their limitations ................................... 192
+Deep Agents ............................................................ 193
+  Coding agents as deep agent harnesses ............................... 194
+Innovation at the application layer .................................... 194
+What makes an agent deep? .............................................. 195
+  Setting up the code companion ........................................ 196
+    Which model the examples use ....................................... 197
+    Optional: watching the agent work .................................. 197
+  The five examples .................................................... 198
+  Building your first deep agent ....................................... 198
+Planning tool in Deep Agents ........................................... 199
+  Watching the plan take shape ......................................... 200
+Subagents and hierarchical delegation .................................. 202
+  Delegating to a subagent ............................................. 203
+Filesystem access in Deep Agents ....................................... 206
+Why filesystems matter for long-horizon tasks .......................... 207
+  The filesystem as a context engine ................................... 208
+  The filesystem in practice ........................................... 208
+System prompt .......................................................... 210
+  Writing a system prompt that holds ................................... 213
+Introduction to Agent Security ......................................... 215
+  Three pillars of agent risk .......................................... 215
+  Prompt injection and indirect prompt injection ....................... 216
+  Agent supply chain ................................................... 217
+  Skills and MCP servers as remote code ............................... 218
+  The OWASP Top 10 for agentic applications ............................ 218
+  A realistic failure chain ............................................ 219
+  The external control plane ........................................... 220
+    Privilege at every hop ............................................. 221
+  A ten-question review ................................................ 222
+Summary ............................................................... 223
+
+Chapter 8: Unlock the Code Bundle and the PDF Version .................. 225
+Unlock this book’s free benefits in three easy steps ................... 226
+
+Other Books You May Enjoy .............................................. 230
+
+Index ................................................................. 233

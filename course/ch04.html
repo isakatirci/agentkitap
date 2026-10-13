@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>Chapter 4 — No Framework</title>
+  <link rel="stylesheet" href="css/course.css">
+</head>
+<body>
+<nav>
+  <a href="index.html">Kurs</a>
+  <a href="ch03.html">3</a>
+  <a href="ch04.html">4 No framework</a>
+  <a href="ch05.html">5</a>
+  <a href="glossary.html">Glossary</a>
+</nav>
+<main>
+  <h1>Chapter 4 — Agent Loop Without a Framework</h1>
+  <p>Chapter 3 hala LangChain mesaj siniflarini kullanir. Bu bolum bir adim daha iner. Tool bir decorator degildir. Sema elle yazilmis bir JSON sozlugudur. Dongu <code>ollama</code> Python SDK'sinin <code>chat</code> cagrisina benzer bir <code>client.chat</code> ister. Amac, framework'un sihirli gorunen yerinin aslinda bir sozluk oldugunu gostermektir.</p>
+  <div class="goal">
+    <p>Bir tool'u decorator'suz yazabilir, <code>JSON schema</code> ile argumanini tarif edebilir, ham cevap icinden tool adi ve argumanlari ayiklayabilir ve ayni donguyu scriptli bir client ile test edebilirsiniz.</p>
+  </div>
+
+  <h2>1. Decorator olmadan tool</h2>
+  <p><code>@tool</code> su uc seyi sizin yerinize yapar: adi fonksiyon adindan alir, aciklamayi docstring'den alir, arguman tipini ipucundan alir. Bunlar olmadan da tool bir fonksiyondur. <code>search_jobs(keyword)</code> ayni ilan listesine bakar. Eksik olan, modelin bu fonksiyonu gormesidir. Gormesi icin sema gerekir.</p>
+
+  <h2>2. Elle JSON schema</h2>
+  <dl class="term">
+    <dt><span>JSON schema</span></dt>
+    <dd>Ad, aciklama ve arguman tiplerini anlatan JSON. Ollama bunu <code>tools</code> listesinde bekler.</dd>
+  </dl>
+  <p>Sema bir sozluktir. <code>type</code> degeri <code>function</code> olur. Iceride <code>name</code>, <code>description</code> ve <code>parameters</code> vardir. <code>parameters.properties.keyword.type</code> degeri <code>string</code> olur. <code>required</code> listesi <code>keyword</code> icerir. Required, modeli zorlar ama garanti etmez. Dongu eksik argumani yine de kontrol etmelidir. Chapter 5 tip uyusmazligini acikca ele alir.</p>
+  <p>Fonksiyon ile sema isimle bulusur. Sema <code>search_jobs</code> der. <code>TOOLS</code> sozlugunde ayni anahtar gercek fonksiyonu tutar. Isimler ayrisirsa model bir sey ister, siz baska fonksiyonu calistirirsiniz. Bu, junior'in en sessiz bug'idir.</p>
+
+  <h2>3. Ham dongu</h2>
+  <p><code>client.chat(messages, tools)</code> bir sozluk dondurur: <code>content</code> ve <code>tool_calls</code>. Gercek <code>OllamaClient</code> bu sozlugu <code>ollama.chat</code> cevabindan kurar. Test, ayni metodu scriptli bir client ile doldurur. Dongu ikisini de ayirt etmez.</p>
+  <p><code>extract_tool_call</code> ilk cagrinin adini ve argumanlarini cikarir. Argumanlar bazen hazir sozluk, bazen JSON string gelir. String ise <code>json.loads</code> gerekir. Tool yoksa fonksiyon <code>None</code> dondurur ve dongu <code>content</code> ile biter. Varsa sonuc <code>role: tool</code> mesaji olarak listeye eklenir. Ikinci chat cagrisi bu mesaji gorur.</p>
+  <p>Trace yine <code>llm</code>, <code>tool</code>, <code>llm</code> seklindedir. LangSmith bu listenin bulut ekranidir. Yerel <code>LocalTracer</code> ayni sirayi tutar.</p>
+  <div class="run"><p>Calistirma: <code>.\.venv\Scripts\python.exe labs\ch04\raw_loop.py</code></p><p>Beklenen: Qwen 2.5 3B, search_jobs cagrisindan sonra bir cumle kurar. Ollama kapaliysa baglanti hatasi alirsiniz. Gemma 3 4B bu surumde tools parametresini reddeder.</p></div>
+  <pre><code data-lab="labs/ch04/raw_loop.py">&quot;&quot;&quot;Decorator olmadan tool: elle JSON schema ve ham Ollama dongusu.
+
+LangChain @tool semayi docstring ve tip ipucundan uretir.
+Bu dosya ayni semayi sozluk olarak yazar ve ollama SDK sozlesmesine
+benzeyen bir client.chat cagrisina verir.
+&quot;&quot;&quot;
+
+import json
+
+from labs.ch02.job_data import format_jobs
+from labs.kit.tracer import LocalTracer
+
+
+def search_jobs(keyword: str) -&gt; str:
+    &quot;&quot;&quot;Yerel ilan listesinde tag arar. Decorator yoktur.&quot;&quot;&quot;
+
+    return format_jobs(keyword)
+
+
+# Isim -&gt; fonksiyon. Sema ile uygulama ayni isimde bulusur.
+TOOLS = {&quot;search_jobs&quot;: search_jobs}
+
+
+def search_jobs_schema() -&gt; dict:
+    &quot;&quot;&quot;Ollama&#x27;nin bekledigi function schema.
+
+    parameters bir JSON schema&#x27;dir. required, modelin keyword&#x27;u
+    bos birakmasini zorlastirir. Zorunlu kilmak yine de garanti degildir;
+    dongu eksik argumani yine de kontrol etmelidir.
+    &quot;&quot;&quot;
+
+    return {
+        &quot;type&quot;: &quot;function&quot;,
+        &quot;function&quot;: {
+            &quot;name&quot;: &quot;search_jobs&quot;,
+            &quot;description&quot;: &quot;Find local jobs whose tags contain the keyword.&quot;,
+            &quot;parameters&quot;: {
+                &quot;type&quot;: &quot;object&quot;,
+                &quot;properties&quot;: {
+                    &quot;keyword&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Tag to match, for example python.&quot;,
+                    }
+                },
+                &quot;required&quot;: [&quot;keyword&quot;],
+            },
+        },
+    }
+
+
+def extract_tool_call(message: dict) -&gt; tuple[str, dict] | None:
+    &quot;&quot;&quot;Ham mesajdan tool adi ve arguman sozlugunu cikarir.
+
+    Argumanlar bazen sozluk, bazen JSON string gelir. Ikisini de kabul et.
+    Tool yoksa None doner; dongu o zaman nihai metni alir.
+    &quot;&quot;&quot;
+
+    calls = message.get(&quot;tool_calls&quot;) or []
+    if not calls:
+        return None
+    function = calls[0][&quot;function&quot;]
+    arguments = function[&quot;arguments&quot;]
+    if isinstance(arguments, str):
+        arguments = json.loads(arguments)
+    return function[&quot;name&quot;], arguments
+
+
+class OllamaClient:
+    &quot;&quot;&quot;Gercek ollama.chat cagrisini sozluge cevirir.&quot;&quot;&quot;
+
+    def __init__(self, model_name: str = &quot;qwen2.5:3b&quot;) -&gt; None:
+        # gemma3:4b bu Ollama surumunde tools listesini 400 ile reddeder.
+        self.model_name = model_name
+
+    def chat(self, messages: list[dict], tools: list[dict]) -&gt; dict:
+        from ollama import chat
+
+        response = chat(model=self.model_name, messages=messages, tools=tools)
+        message = response[&quot;message&quot;] if isinstance(response, dict) else response.message
+        content = message[&quot;content&quot;] if isinstance(message, dict) else (message.content or &quot;&quot;)
+        raw_calls = (
+            message[&quot;tool_calls&quot;] if isinstance(message, dict) else message.tool_calls
+        )
+        tool_calls = []
+        for call in raw_calls or []:
+            function = call[&quot;function&quot;] if isinstance(call, dict) else call.function
+            name = function[&quot;name&quot;] if isinstance(function, dict) else function.name
+            arguments = (
+                function[&quot;arguments&quot;] if isinstance(function, dict) else function.arguments
+            )
+            tool_calls.append({&quot;function&quot;: {&quot;name&quot;: name, &quot;arguments&quot;: arguments}})
+        return {&quot;content&quot;: content or &quot;&quot;, &quot;tool_calls&quot;: tool_calls}
+
+
+def run_raw_agent(
+    user_text: str,
+    client,
+    tracer: LocalTracer | None = None,
+    max_steps: int = 4,
+) -&gt; str:
+    &quot;&quot;&quot;JSON schema&#x27;li ham agent dongusu.
+
+    client.chat(messages, tools) bir sozluk dondurur:
+    content ve tool_calls. Bu, Ollama SDK cevabinin sade halidir.
+    &quot;&quot;&quot;
+
+    messages: list[dict] = [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: user_text}]
+    tools = [search_jobs_schema()]
+    for _ in range(max_steps):
+        message = client.chat(messages, tools)
+        if tracer is not None:
+            tracer.record_llm(
+                prompt=user_text,
+                response=str(message[&quot;content&quot;] or message[&quot;tool_calls&quot;]),
+            )
+        messages.append(
+            {
+                &quot;role&quot;: &quot;assistant&quot;,
+                &quot;content&quot;: message[&quot;content&quot;],
+                &quot;tool_calls&quot;: message[&quot;tool_calls&quot;],
+            }
+        )
+        extracted = extract_tool_call(message)
+        if extracted is None:
+            return str(message[&quot;content&quot;])
+        name, arguments = extracted
+        if name not in TOOLS:
+            result = f&quot;Unknown tool: {name}&quot;
+        else:
+            result = TOOLS[name](**arguments)
+        if tracer is not None:
+            tracer.record_tool(name=name, arguments=arguments, result=result)
+        messages.append({&quot;role&quot;: &quot;tool&quot;, &quot;content&quot;: result, &quot;name&quot;: name})
+    raise RuntimeError(&quot;raw agent hit max_steps&quot;)
+
+
+def main(client=None) -&gt; str:
+    chosen = client or OllamaClient()
+    answer = run_raw_agent(&quot;Find python jobs&quot;, chosen, LocalTracer())
+    print(answer)
+    return answer
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre>
+
+  <h2>Uygulama</h2>
+  <div class="qa"><p><strong>Soru 1.</strong> <code>@tool</code> sizin yerinize hangi uc bilgiyi uretir?</p></div>
+  <div class="qa"><p><strong>Soru 2.</strong> JSON schema icinde <code>keyword</code> nerede durur? <code>required</code> ne soyler ve ne soylemez?</p></div>
+  <div class="qa"><p><strong>Soru 3.</strong> Sema adi ile <code>TOOLS</code> anahtari ayrisirsa ne olur?</p></div>
+  <div class="qa"><p><strong>Soru 4.</strong> Argumanlar JSON string gelirse hangi fonksiyon cozer? Tool cagrisi yoksa dongu ne dondurur?</p></div>
+  <div class="qa"><p><strong>Soru 5.</strong> Ikinci <code>chat</code> cagrisinin mesaj listesinde hangi rol, tool sonucunu tasir?</p></div>
+
+  <h2>Cevap anahtari</h2>
+  <div class="answer"><p><strong>Cevap 1.</strong> Adi fonksiyon adindan, aciklamayi docstring'den, arguman tipini tip ipucundan uretir. Decorator olmayinca bu ucu sema sozlugune siz yazarsiniz. Fonksiyonun govdesi ayni kalabilir.</p></div>
+  <div class="answer"><p><strong>Cevap 2.</strong> <code>function.parameters.properties.keyword</code> altindadir. Tipi string'dir. <code>required</code>, bu alanin istenen oldugunu soyler. Model yine de alani bos birakabilir veya yanlis tip gonderebilir. Dongu bunu ayrica kontrol eder.</p></div>
+  <div class="answer"><p><strong>Cevap 3.</strong> Model semadaki adi ister. Sozlukte o anahtar yoksa dongu <code>Unknown tool</code> dondurur ya da <code>KeyError</code> alirsiniz. Isimler ayni kelime olmalidir.</p></div>
+  <div class="answer"><p><strong>Cevap 4.</strong> <code>json.loads</code> stringi sozluge cevirir. <code>extract_tool_call</code> <code>None</code> dondururse dongu <code>content</code> metnini nihai cevap sayar.</p></div>
+  <div class="answer"><p><strong>Cevap 5.</strong> <code>role</code> degeri <code>tool</code> olan mesaj. Icerigi, <code>search_jobs</code> fonksiyonunun dondurdugu ilan metnidir. Ikinci model cagrisi bu satiri gormeden cumle kurmamalidir.</p></div>
+</main>
+</body>
+</html>

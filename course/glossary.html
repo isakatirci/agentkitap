@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>Glossary</title>
+  <link rel="stylesheet" href="css/course.css">
+</head>
+<body>
+<nav>
+  <a href="index.html">Kurs</a>
+  <a href="glossary.html">Glossary</a>
+</nav>
+<main>
+  <h1 class="keep">Glossary</h1>
+  <p>Terimler Ingilizce kalir. Buradaki cumle her terimin ilk karsiligidir.</p>
+  <dl class="term">
+    <dt><span>prompt</span></dt><dd>Modele verilen metin. Model bundan sonraki tokenlari uretir.</dd>
+    <dt><span>prompt template</span></dt><dd>Icinde bosluklar olan prompt kalibi. Bosluklar calisma aninda dolar.</dd>
+    <dt><span>chat model</span></dt><dd>Mesaj listesi alip bir assistant mesaji donduren model.</dd>
+    <dt><span>chain</span></dt><dd>Bir adimin ciktisini sonraki adima veren boru. Bu kursta prompt, sonra model.</dd>
+    <dt><span>LCEL</span></dt><dd>LangChain Expression Language. <code>|</code> ile adimlari birbirine baglar.</dd>
+    <dt><span>AIMessage</span></dt><dd>Modelin dondurdugu mesaj nesnesi. Metin <code>content</code> alanindadir.</dd>
+    <dt><span>tool</span></dt><dd>Modelin kendi basina yapamadigi isi yapan fonksiyon: arama, dosya, hesap.</dd>
+    <dt><span>tool calling</span></dt><dd>Modelin "su fonksiyonu su argumanlarla cagir" diye yapilandirilmis istek uretmesi.</dd>
+    <dt><span>agent</span></dt><dd>Model ile tool arasinda, is bitene kadar donen dongu.</dd>
+    <dt><span>ReAct</span></dt><dd>Reason and Act. Thought, action, observation adimlariyla dusunen agent deseni.</dd>
+    <dt><span>thought</span></dt><dd>Modelin bir sonraki adimi neden sectigini yazdigi satir.</dd>
+    <dt><span>action</span></dt><dd>Cagrilacak tool ve argumanlari.</dd>
+    <dt><span>observation</span></dt><dd>Tool calistiktan sonra donguye geri yazilan sonuc.</dd>
+    <dt><span>scratchpad</span></dt><dd>Onceki thought, action ve observation metinlerinin biriktigi alan.</dd>
+    <dt><span>structured output</span></dt><dd>Serbest cumle yerine belirli alanlari olan nesne. Bu kursta Pydantic modeli.</dd>
+    <dt><span>Pydantic</span></dt><dd>Python sinifini hem belge hem dogrulama semasina ceviren kutuphane.</dd>
+    <dt><span>ProviderStrategy</span></dt><dd>Structured output'u modelin kendi sema destegiyle alma yolu.</dd>
+    <dt><span>ToolStrategy</span></dt><dd>Structured output'u ozel bir tool cagrisi gibi alma yolu.</dd>
+    <dt><span>JSON schema</span></dt><dd>Bir tool'un adini, aciklamasini ve arguman tiplerini anlatan JSON.</dd>
+    <dt><span>stop sequence</span></dt><dd>Modelin uretimini durduran metin parcasi.</dd>
+    <dt><span>zero-shot</span></dt><dd>Ornek vermeden sadece talimatla sormak.</dd>
+    <dt><span>few-shot</span></dt><dd>Promptun icine birkac cozulmus ornek koymak.</dd>
+    <dt><span>chain of thought</span></dt><dd>Modelden once ara adimlari yazmasini istemek.</dd>
+    <dt><span>context window</span></dt><dd>Modelin bir cagrida gorebildigi metin kapasitesi.</dd>
+    <dt><span>context engineering</span></dt><dd>O pencereye neyin girip neyin disarida kalacagini tasarlamak.</dd>
+    <dt><span>shallow agent</span></dt><dd>Kisa, tek duzeyli tool dongusu. Uzun islerde dagilir.</dd>
+    <dt><span>deep agent</span></dt><dd>Plan, alt agent ve dosya kullanabilen uzun is harness'i.</dd>
+    <dt><span>harness</span></dt><dd>Modelin etrafindaki duzen: prompt, tool'lar, dongu ve sinirlar.</dd>
+    <dt><span>subagent</span></dt><dd>Ana agentin bir alt gorev icin calistirdigi ayri dongu.</dd>
+    <dt><span>system prompt</span></dt><dd>Kullanici mesajindan once duran, rolu ve kurallari yazan metin.</dd>
+    <dt><span>prompt injection</span></dt><dd>Dis metnin, system prompt kurallarini ezmeye calismasi.</dd>
+    <dt><span>supply chain</span></dt><dd>Agentin cagirdigi paket, tool ve sunucularin guven zinciri.</dd>
+    <dt><span>MCP</span></dt><dd>Model Context Protocol. Dis bir sunucunun araclari modele acmasinin standart yolu.</dd>
+    <dt><span>sandbox</span></dt><dd>Agentin dosya yazabildigi sinirli klasor. Proje kokune yazamaz.</dd>
+  </dl>
+</main>
+</body>
+</html>

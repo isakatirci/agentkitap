@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>Chapter 5 — ReAct Prompt</title>
+  <link rel="stylesheet" href="css/course.css">
+</head>
+<body>
+<nav>
+  <a href="index.html">Kurs</a>
+  <a href="ch04.html">4</a>
+  <a href="ch05.html">5 ReAct prompt</a>
+  <a href="ch06.html">6</a>
+  <a href="glossary.html">Glossary</a>
+</nav>
+<main>
+  <h1>Chapter 5 — ReAct From Scratch</h1>
+  <p>Bu bolum function calling kullanmaz. Model duz metin yazar. Siz <code>Thought</code>, <code>Action</code>, <code>Action Input</code> ve <code>Final Answer</code> satirlarini regex ile ayirirsiniz. Framework'lerin sakladigi kirilganlik tam olarak buradadir. Bir fazla cumle, bir eksik suslu parantez, donguyu bozar.</p>
+  <div class="goal">
+    <p>ReAct prompt'unu kurabilir, <code>stop sequence</code> ile uydurma observation'i kesebilir, final cevabi ve action'i regex ile cikarabilir, tip uyusmazligini observation metnine cevirebilirsiniz.</p>
+  </div>
+
+  <h2>1. Prompt ve scratchpad</h2>
+  <p>Prompt uc parcadan olusur. Araclarin duz metin listesi. Yazilacak seklin ornegi. Soru ve o ana kadarki scratchpad. Scratchpad bosken model ilk action'i secer. Tool calisinca gercek sonuc <code>Observation:</code> satiri olarak scratchpad'e eklenir. Sonraki cagri tum metni yeniden gorur.</p>
+  <p>Model token uretir, arac calistirmaz. <code>Action: search_jobs</code> yazmak, fonksiyonun calistigi anlamina gelmez. Calistiran sizin dongunuzdur. Bu ayrim Chapter 6'nin ilk cumlesidir ve burada da gecerlidir.</p>
+
+  <h2>2. Stop sequence</h2>
+  <dl class="term">
+    <dt><span>stop sequence</span></dt>
+    <dd>Uretim bu metni gorunce kesilir. Kesilen parca modele ait sayilmaz.</dd>
+  </dl>
+  <p>Model siklikla kendi observation'ini de yazar: <code>Observation: invented</code>. Siz onu gercek sonuc sanirsaniz tool hic calismaz. <code>stop=["Observation:"]</code> uretimi o kelimede keser. Uydurma satir <code>content</code> icine girmez. Gercek observation'i yalnizca <code>execute_tool</code> dondurdukten sonra siz eklersiniz. Test bunu soyle kilitler: ikinci prompt'ta "invented" yoktur, Acme satiri vardir.</p>
+
+  <h2>3. Regex</h2>
+  <p><code>extract_final_answer</code>, <code>Final Answer:</code> sonrasini alir. <code>extract_action</code>, tool adini ve ilk JSON nesnesini alir. JSON kiriksa <code>None</code> doner. Dongu o zaman "ayristiramadim" der ve sessizce bos string birakmaz. Framework'ler bu iki fonksiyonun daha sikı halini iclerinde tasir. Siz bir kez elle yazinca, neden kütüphanenin parse hatasinin bu kadar cok konusuldugunu gorursunuz.</p>
+
+  <h2>4. Tip uyusmazligi</h2>
+  <p><code>{"keyword": 3}</code> gecerli JSON'dur ama tool string ister. Fonksiyonu oldugu gibi cagirirsaniz Python exception firlatir ve dongu ölür. Bunun yerine observation soyle olur: <code>Type error: keyword must be a string.</code> Model bir sonraki turda bu cumleyi gorur ve <code>"python"</code> gonderir. Hata, kullaniciya coken bir yigin izi degil, scratchpad'deki bir satirdir.</p>
+  <div class="run"><p>Calistirma: <code>.\.venv\Scripts\python.exe labs\ch05\prompt_react.py</code></p><p>Beklenen: canli model sekli tutturursa ilan cumlesi. Sekli bozarsa lab "Could not parse" der. Bu da bir sonuctur. Scriptli test sekli kendisi yazar ve Acme cevabini kilitler.</p></div>
+  <pre><code data-lab="labs/ch05/prompt_react.py">&quot;&quot;&quot;Function calling olmadan ReAct.
+
+Model tool_calls alani uretmez. Thought / Action / Action Input
+satirlarini duz metin olarak yazar. Biz regex ile ayiririz.
+Stop sequence, modelin Observation satirini kendisinin uydurmasini keser.
+Gercek observation&#x27;i ancak tool calistiktan sonra scratchpad&#x27;e yazariz.
+&quot;&quot;&quot;
+
+import json
+import re
+
+from langchain_core.messages import HumanMessage
+
+from labs.ch02.job_data import format_jobs
+from labs.kit.models import make_chat_model
+from labs.kit.tracer import LocalTracer
+
+TOOL_TEXT = &quot;search_jobs: keyword must be a string, for example python.&quot;
+
+REACT_INSTRUCTIONS = &quot;&quot;&quot;You are a job agent. Tools:
+{tools}
+
+Use exactly this shape. Stop before Observation. The program will write Observation.
+
+Thought: why you chose the next step
+Action: search_jobs
+Action Input: {{&quot;keyword&quot;: &quot;python&quot;}}
+
+When you know the answer, write:
+Thought: I know the answer
+Final Answer: the jobs you found
+&quot;&quot;&quot;
+
+
+def extract_final_answer(text: str) -&gt; str | None:
+    &quot;&quot;&quot;Final Answer satirindan sonrasini alir. Yoksa None.&quot;&quot;&quot;
+
+    match = re.search(r&quot;Final Answer:\s*(.*)&quot;, text, re.DOTALL)
+    if match is None:
+        return None
+    return match.group(1).strip()
+
+
+def extract_action(text: str) -&gt; tuple[str, dict] | None:
+    &quot;&quot;&quot;Action adi ve Action Input JSON nesnesini cikarir.
+
+    JSON kiriksa None doner. Dongu bunu &#x27;ayristiramadim&#x27; diye gorur.
+    &quot;&quot;&quot;
+
+    action = re.search(r&quot;Action:\s*([A-Za-z_][A-Za-z0-9_]*)&quot;, text)
+    raw = re.search(r&quot;Action Input:\s*(\{.*?\})&quot;, text, re.DOTALL)
+    if action is None or raw is None:
+        return None
+    try:
+        arguments = json.loads(raw.group(1))
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(arguments, dict):
+        return None
+    return action.group(1), arguments
+
+
+def execute_tool(name: str, arguments: dict) -&gt; str:
+    &quot;&quot;&quot;Tool&#x27;u calistirir. Tip uyusmazligi exception degil, observation metnidir.
+
+    Model sayi gonderirse Python fonksiyonu patlamasin. Hata cumlesi
+    scratchpad&#x27;e yazilsin ki model bir sonraki turda string gondersin.
+    &quot;&quot;&quot;
+
+    if name != &quot;search_jobs&quot;:
+        return f&quot;Unknown tool: {name}&quot;
+    keyword = arguments.get(&quot;keyword&quot;)
+    if not isinstance(keyword, str):
+        return &quot;Type error: keyword must be a string.&quot;
+    return format_jobs(keyword)
+
+
+def run_prompt_react(
+    user_text: str,
+    model,
+    tracer: LocalTracer | None = None,
+    max_steps: int = 4,
+) -&gt; str:
+    &quot;&quot;&quot;Metin tabanli ReAct dongusu.
+
+    stop=[&#x27;Observation:&#x27;] modelin sahte gozlem yazmasini keser.
+    Scratchpad onceki thought/action ve gercek observation&#x27;i tasir.
+    &quot;&quot;&quot;
+
+    scratchpad = &quot;&quot;
+    instructions = REACT_INSTRUCTIONS.format(tools=TOOL_TEXT)
+    for _ in range(max_steps):
+        prompt = f&quot;{instructions}\nQuestion: {user_text}\n{scratchpad}&quot;
+        # Stop, Observation kelimesinde uretimi keser. Uydurma gozlem prompt&#x27;a girmez.
+        message = model.invoke([HumanMessage(content=prompt)], stop=[&quot;Observation:&quot;])
+        text = str(message.content)
+        if tracer is not None:
+            tracer.record_llm(prompt=user_text, response=text)
+        final = extract_final_answer(text)
+        if final:
+            return final
+        parsed = extract_action(text)
+        if parsed is None:
+            return &quot;Could not parse an action or a final answer.&quot;
+        name, arguments = parsed
+        observation = execute_tool(name, arguments)
+        if tracer is not None:
+            tracer.record_tool(name=name, arguments=arguments, result=observation)
+        # Gercek observation burada eklenir. Modelin yazdigi degil.
+        scratchpad += f&quot;{text}\nObservation: {observation}\n&quot;
+    raise RuntimeError(&quot;prompt ReAct hit max_steps&quot;)
+
+
+def main(model=None) -&gt; str:
+    chosen = model or make_chat_model()
+    answer = run_prompt_react(&quot;Find python jobs&quot;, chosen, LocalTracer())
+    print(answer)
+    return answer
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre>
+
+  <h2>Uygulama</h2>
+  <div class="qa"><p><strong>Soru 1.</strong> Action satiri yazilmasi tool'un calistigi anlamina gelir mi?</p></div>
+  <div class="qa"><p><strong>Soru 2.</strong> Stop sequence neden <code>Observation:</code> kelimesine kuruludur?</p></div>
+  <div class="qa"><p><strong>Soru 3.</strong> Final Answer ve Action Input hangi fonksiyonlarla cikar? JSON kiriksa ne doner?</p></div>
+  <div class="qa"><p><strong>Soru 4.</strong> <code>keyword</code> sayi gelirse neden exception firlatilmaz?</p></div>
+  <div class="qa"><p><strong>Soru 5.</strong> Framework bu bolumun neresini saklar?</p></div>
+
+  <h2>Cevap anahtari</h2>
+  <div class="answer"><p><strong>Cevap 1.</strong> Gelmez. Action bir metindir. Tool'u <code>execute_tool</code> calistirir. Model yalnizca token uretir.</p></div>
+  <div class="answer"><p><strong>Cevap 2.</strong> Model kendi observation cumlesini uydurabilir. Stop, uretimi o satirdan once keser. Gercek sonuc tool dondurdukten sonra scratchpad'e yazilir. Test, ikinci prompt'ta "invented" kelimesinin olmadigini ve Acme satirinin oldugunu kontrol eder.</p></div>
+  <div class="answer"><p><strong>Cevap 3.</strong> <code>extract_final_answer</code> ve <code>extract_action</code>. JSON <code>json.loads</code> ile cozulur. Kirik JSON <code>None</code> verir. Dongu o zaman acik bir ayrıştırma mesaji dondurur.</p></div>
+  <div class="answer"><p><strong>Cevap 4.</strong> Sayi gecerli JSON'dur, tool sozlesmesi string ister. Exception donguyu oldurur. Observation metni tipi soyler. Sonraki tur string gonderebilir. Scriptli test once tip hatasini, sonra <code>python</code> cagrisini gorur.</p></div>
+  <div class="answer"><p><strong>Cevap 5.</strong> Regex'i, stop'u ve tip kontrolunu saklar. Siz <code>tool_calls</code> alani gorursunuz. Alttaki problem aynidir: modelin ciktisi sozlesmeye uymayabilir ve uymayan cikti bir sonraki turun girdisi olmalidir, carpisan bir program degil.</p></div>
+</main>
+</body>
+</html>
